@@ -14,10 +14,9 @@
 pragma solidity ^0.8.4;
 
 import './ERC721A.sol';
+import './Ownable.sol';
 
-
-
-contract CryptoCupsTickets is ERC721A {
+contract CryptoCupsTickets is ERC721A, Ownable {
 
     // Ticket Type
     mapping (uint => string) public ticketType; 
@@ -37,10 +36,8 @@ contract CryptoCupsTickets is ERC721A {
     ];
 
 
-
     // Constructor
     constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {}
-
 
 
     function mint(uint _amount, uint _currency, uint _type) public {
@@ -61,5 +58,27 @@ contract CryptoCupsTickets is ERC721A {
         // Mint the Tickets!
         _mint(msg.sender, _amount);
     }   
+
+
+    function addCurrency(address _newCurrency) public onlyOwner {
+        currencies.push(_newCurrency);
+    }
+
+
+    function changePrice(uint _type, uint _amount) public onlyOwner {
+        require(_type >= 0 && _type < prices.length, "Invalid type.");
+        require(_amount != 0, "Invalid Price");
+
+        prices[_type] = _amount; 
+    }
+
+
+    function addTicketType(string memory _name, uint _value) public onlyOwner {
+        require(keccak256(abi.encodePacked(_name)) != keccak256(abi.encodePacked("")), "Invalid Name");
+        require(_value > 0, "Invalid value");
+
+        ticketTypes.push(_name);
+        prices.push(_value);
+    }
 
 }
