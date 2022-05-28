@@ -40,6 +40,13 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {}
 
 
+    // Events
+    event currencyAdded(address);
+    event priceChanged(string, uint);
+    event newTicketType(string, uint);
+
+
+    // Functions
     function mint(uint _amount, uint _currency, uint _type) public {
         // Check if Params Are Correct
         require(_amount > 0, "Invalid Amount.");
@@ -62,6 +69,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
     function addCurrency(address _newCurrency) public onlyOwner {
         currencies.push(_newCurrency);
+        emit currencyAdded(_newCurrency);
     }
 
 
@@ -70,6 +78,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
         require(_amount != 0, "Invalid Price");
 
         prices[_type] = _amount; 
+        emit priceChanged(ticketTypes[_type], _amount);
     }
 
 
@@ -79,6 +88,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
         ticketTypes.push(_name);
         prices.push(_value);
+        emit newTicketType(_name, _value);
     }
 
 }
