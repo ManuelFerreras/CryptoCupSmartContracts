@@ -47,7 +47,7 @@ contract ERC721A is IERC721A {
     mapping(uint256 => TokenOwnership) internal _ownerships;
 
     // Mapping owner address to address data
-    mapping(address => AddressData) private _addressData;
+    mapping(address => AddressData) internal _addressData;
 
     // Mapping from token ID to approved address
     mapping(uint256 => address) private _tokenApprovals;
@@ -199,7 +199,7 @@ contract ERC721A is IERC721A {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(tokenId))) : '';
+        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI)) : '';
     }
 
     /**
@@ -208,7 +208,7 @@ contract ERC721A is IERC721A {
      * by default, can be overriden in child contracts.
      */
     function _baseURI() internal view virtual returns (string memory) {
-        return '';
+        return 'https://ipfs.io/ipfs/QmUG17vmBpHTVN6e55YaW35i3jRrVURZ7VaW9ms3m54m1r/';
     }
 
     /**
@@ -356,45 +356,6 @@ contract ERC721A is IERC721A {
                     emit Transfer(address(0), to, updatedIndex++);
                 } while (updatedIndex < end);
             }
-            _currentIndex = updatedIndex;
-        }
-        _afterTokenTransfers(address(0), to, startTokenId, quantity);
-    }
-
-    /**
-     * @dev Mints `quantity` tokens and transfers them to `to`.
-     *
-     * Requirements:
-     *
-     * - `to` cannot be the zero address.
-     * - `quantity` must be greater than 0.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _mint(address to, uint256 quantity) internal {
-        uint256 startTokenId = _currentIndex;
-        if (to == address(0)) revert MintToZeroAddress();
-        if (quantity == 0) revert MintZeroQuantity();
-
-        _beforeTokenTransfers(address(0), to, startTokenId, quantity);
-
-        // Overflows are incredibly unrealistic.
-        // balance or numberMinted overflow if current value of either + quantity > 1.8e19 (2**64) - 1
-        // updatedIndex overflows if _currentIndex + quantity > 1.2e77 (2**256) - 1
-        unchecked {
-            _addressData[to].balance += uint64(quantity);
-            _addressData[to].numberMinted += uint64(quantity);
-
-            _ownerships[startTokenId].addr = to;
-            _ownerships[startTokenId].startTimestamp = uint64(block.timestamp);
-
-            uint256 updatedIndex = startTokenId;
-            uint256 end = updatedIndex + quantity;
-
-            do {
-                emit Transfer(address(0), to, updatedIndex++);
-            } while (updatedIndex < end);
-
             _currentIndex = updatedIndex;
         }
         _afterTokenTransfers(address(0), to, startTokenId, quantity);
