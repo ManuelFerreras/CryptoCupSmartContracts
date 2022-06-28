@@ -105,25 +105,16 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     // Paused Sale.
     bool public paused;
 
-    uint[] public basicBatches = [1000, 4000, 10000]; // Amount of left batch nfts.
-    uint[] public boostBatches = [1000, 4000, 10000]; // Amount of left batch nfts.
+    uint[] public batchesDeadline = [1000, 4000, 10000]; // Amount of left batch nfts.
 
-    uint8 public currentBatch = 0;
+    uint[] public basicPrices = [15, 20, 25]; 
+    uint[] public boostPrices = [50, 55, 60]; 
 
-    struct Ticket {
-        string name;
-        uint256 price; // Without decimals.
-        uint256[] batches;
-    }
-    Ticket ticket;
+    uint8 public currentBatch = 0; 
 
-    Ticket[] tickets;
 
     // Ticket Types
     string[] private ticketTypes = ["Basic", "Boost"]; 
-
-    // Prices in USD
-    uint[] public prices = [15, 40]; 
 
     // Different Currencies Accepted
     address[] public currencies = [
