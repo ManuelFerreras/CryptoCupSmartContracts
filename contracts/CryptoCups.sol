@@ -260,7 +260,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     
 
     function togglePaused() public onlyOwner {
-        paused == true? paused = false : paused = true;
+        paused? paused = false : paused = true;
         emit pauseChange(paused);
     }
 
