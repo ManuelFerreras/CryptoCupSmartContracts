@@ -57,9 +57,9 @@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&@&%&&(/%#*   (/*((#%&         *%%@@@    @@@@@,        .@@@@@   &&%%%,  @@&@@/  (@@@**&# %/%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#&&&@%%*(%//   #((#(%&&   @@,   @&%@@@,  #@@@@@,  (@@@@@@@@#@@   &#&@%,  #@@@@   @@@/*%&%((*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#@&(%%&#&&%,(#,*         ##   #%&@   #&@@@,  #@@@@@,  (@@@@@@@@@@@   #(#%##%,      &@@@&(@((#%,%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%&&&&&@@@@@@@@@@@@@@@@@@@@@@@@@#&&&@@&@@@@@@@@@@@@@@@@@@@@@@@@@%%###(#####%%#(((#%/%@@&#%%/@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&@@&#&%%&(%**%       . ,,***,,.,///((      @@/  /@@@@   @@@        %##//((((#####((///&%&@@#%%#/%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#&%%&&&(,&,   .*./**/(/*****/#,   &%@%@&@*  /@@@@   @@@   @@@*   ##(((((#((((////*&#%#%&%%/@&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&@@&@@@@@@@@@@@@@@@@@@@@@@@@@%%###(#####%%#(((#%/%@@&#%%/@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&@@&#&%%&(%**%(//(((/. ,,***,,.,///((      @@/  /@@@@   @@@        %##//((((#####((///&%&@@#%%#/%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#&%%&&&(,&,(//.*./**/(/*****/#,   &%@%@&@*  /@@@@   @@@   @@@*   ##(((((#((((////*&#%#%&%%/@&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#*%%&&&.,,***.* .*////(((((##   #(&/@(&@/  /&@@&   @@@   @&&#   %##(#((*. ./((///(&.&&&%%@&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#&&&(.,//*,/,*///((//(((##%   &%%&@@%%*  *@@&@   &&&   &    (%%%%##(/...*/#(//&/&%.//(&@&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/,( * .**///((////*/(/(#(%        @@@         ,@@&   &%###########(///((////&#/,@%/(&@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -99,18 +99,24 @@ import './Ownable.sol';
 
 contract CryptoCupsTickets is ERC721A, Ownable {
 
+    uint public totalBuyers = 0;
+    uint private _baseReferralCode = 100000;
+
+    mapping (address => uint) public referralCodes;
+    mapping (uint => address) public referralAddresses;
+
+    uint public referedDiscount = 1;
+    uint public referralFee = 1;
+
     // Ticket Type
     mapping (uint => string) public ticketType; 
+    mapping (uint => uint) public ticketBatch;
 
-    // Paused Sale.
-    bool public paused;
-
-    uint[] public batchesDeadline = [1000, 4000, 10000]; // Amount of left batch nfts.
-
-    uint[] public basicPrices = [15, 20, 25]; 
-    uint[] public boostPrices = [50, 55, 60]; 
+    uint public basicPrice; 
+    uint public boostPrice; 
 
     uint8 public currentBatch = 0; 
+    uint public currentBatchDeadline = 0;
 
 
     // Ticket Types
@@ -126,48 +132,43 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
 
     // Constructor
-    constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {
-        paused = true;
-    }
+    constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {}
 
 
     // Events
     event currencyAdded(address);
-    event priceChanged(string, uint);
-    event newTicketType(string, uint);
     event currencyRemoved(uint);
-    event batchChanged(uint);
-    event pauseChange(bool);
+    event batchChanged(uint, uint);
+    event newReferralValues(uint, uint);
 
 
     // Functions
-    function mint(uint _amount, uint _currency, uint _type) public {
-        // Check if there are minteable nfts.
-        require(!paused, "Mint is Paused.");
-        if(currentBatch < basicBatches.length) {
-            if(_type == 0) require(basicBatches[currentBatch] >= _amount, "No nfts left for current batch.");
-            else if(_type == 1) require(boostBatches[currentBatch] >= _amount, "No nfts left for current batch.");
-        }
-
+    function mint(uint _amount, uint _currency, uint _type, uint _referralCode) public onlyOngoingBatch checkNotSelfReferral(_referralCode) {
         // Check if Params Are Correct
         require(_amount > 0, "Invalid Amount.");
         require(_currency >= 0 && _currency < currencies.length, "Invalid Currency.");
-        require(_type >= 0 && _type < ticketTypes.length, "Invalid Type.");
+        require(_type == 0 || _type == 1, "Invalid Type.");
+
+        bool _discount = referralAddresses[_referralCode] != address(0)? true : false;
+
+        uint _unitPrice = (_type == 0? basicPrice : boostPrice) - (_discount? referedDiscount : 0);
 
         // Checks msg.sender has enough balance.
         IERC20Metadata _selectedCurrency = IERC20Metadata(currencies[_currency]);
-        uint _totalPriceAmount = _amount * prices[_type] * _selectedCurrency.decimals();
-        require(_selectedCurrency.balanceOf(msg.sender) >= prices[_type], "Not Enough Balance to Pay.");
-        require(_selectedCurrency.allowance(msg.sender, address(this)) >= prices[_type], "Not Enough Allowance to Pay.");
+        uint _totalPriceAmount = _amount * _unitPrice * _selectedCurrency.decimals();
+        require(_selectedCurrency.balanceOf(msg.sender) >= _unitPrice, "Not Enough Balance to Pay.");
+        require(_selectedCurrency.allowance(msg.sender, address(this)) >= _unitPrice, "Not Enough Allowance to Pay.");
+
+        uint _totalReferralAmount = _discount? _amount * referralFee *  _selectedCurrency.decimals() : 0;
 
         // Pay for the ticket.
-        _selectedCurrency.transferFrom(msg.sender, address(this), _totalPriceAmount);
+        _selectedCurrency.transferFrom(msg.sender, address(this), _totalPriceAmount - _totalReferralAmount);
+        _selectedCurrency.transferFrom(msg.sender, referralAddresses[_referralCode], _totalReferralAmount);
         
-
-        // Discount from batch
-        if(currentBatch < basicBatches.length) {
-            if(_type == 0) basicBatches[currentBatch] -= _amount;
-            else if(_type == 1) boostBatches[currentBatch] -= _amount;
+        if(referralCodes[msg.sender] == 0) {
+            totalBuyers++;
+            referralCodes[msg.sender] = _baseReferralCode + totalBuyers;
+            referralAddresses[_baseReferralCode + totalBuyers] = msg.sender;
         }
 
         // Mint the Tickets!
@@ -207,6 +208,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
             do {
                 ticketType[updatedIndex] = ticketTypes[_type];
+                ticketBatch[updatedIndex] = currentBatch;
                 emit Transfer(address(0), to, updatedIndex++);
             } while (updatedIndex < end);
 
@@ -236,15 +238,6 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     }
 
 
-    function changePrice(uint _type, uint _amount) public onlyOwner {
-        require(_type >= 0 && _type < prices.length, "Invalid type.");
-        require(_amount >= 0, "Invalid Price");
-
-        prices[_type] = _amount; 
-        emit priceChanged(ticketTypes[_type], _amount);
-    }
-
-
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
@@ -253,15 +246,41 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     }
 
 
-    function nextBatch() public onlyOwner {
-        currentBatch++;
-        emit batchChanged(currentBatch);
-    }
-    
+    function nextBatch(uint deadline, uint _basicPrice, uint _boostPrice) public onlyOwner finishedBatch {
+        require(_basicPrice >= 0, "Invalid Price");
+        require(_boostPrice >= 0, "Invalid Price");
 
-    function togglePaused() public onlyOwner {
-        paused? paused = false : paused = true;
-        emit pauseChange(paused);
+        basicPrice = _basicPrice;
+        boostPrice = _boostPrice;
+
+        currentBatch++;
+        currentBatchDeadline = deadline;
+        emit batchChanged(currentBatch, currentBatchDeadline);
+    }
+
+
+    function setReferralValues(uint _referralFee, uint _referedDiscount) public onlyOwner {
+        referralFee = _referralFee;
+        referedDiscount = _referedDiscount;
+
+        emit newReferralValues(referralFee, referedDiscount);
+    }
+
+
+    // Modifiers
+    modifier finishedBatch() {
+        require(block.timestamp >= currentBatchDeadline, "Batch has not finished yet.");
+        _;
+    }
+
+    modifier onlyOngoingBatch() {
+        require(block.timestamp < currentBatchDeadline, "Batch has already finished.");
+        _;
+    }
+
+    modifier checkNotSelfReferral(uint ref) {
+        require(msg.sender != referralAddresses[ref], "You can not refer yourself.");
+        _; 
     }
 
 }
