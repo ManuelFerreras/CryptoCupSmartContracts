@@ -130,6 +130,12 @@ contract CryptoCupsTickets is ERC721A, Ownable {
         0xc2132D05D31c914a87C6611C10748AEb04B58e8F // USDT Matic
     ];
 
+    // Owners Fees Collector
+    address ownersFeesCollector;
+
+    // Owners Fees
+    uint ownersFees = 5;
+
 
     // Constructor
     constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {}
@@ -140,6 +146,8 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     event currencyRemoved(uint);
     event batchChanged(uint, uint);
     event newReferralValues(uint, uint);
+    event newFeesCollector(address);
+    event newFees(uint);
 
 
     // Functions
@@ -160,9 +168,11 @@ contract CryptoCupsTickets is ERC721A, Ownable {
         require(_selectedCurrency.allowance(msg.sender, address(this)) >= _unitPrice, "Not Enough Allowance to Pay.");
 
         uint _totalReferralAmount = _discount? _amount * referralFee *  _selectedCurrency.decimals() : 0;
+        uint _totalOwnersFees = _discount? ownersFees *  _selectedCurrency.decimals() : ownersFees *  _selectedCurrency.decimals() * 2;
 
         // Pay for the ticket.
-        _selectedCurrency.transferFrom(msg.sender, address(this), _totalPriceAmount - _totalReferralAmount);
+        _selectedCurrency.transferFrom(msg.sender, address(this), _totalPriceAmount - _totalReferralAmount - _totalOwnersFees);
+        _selectedCurrency.transferFrom(msg.sender, ownersFeesCollector, _totalOwnersFees);
         _selectedCurrency.transferFrom(msg.sender, referralAddresses[_referralCode], _totalReferralAmount);
         
         if(referralCodes[msg.sender] == 0) {
@@ -267,6 +277,29 @@ contract CryptoCupsTickets is ERC721A, Ownable {
         referedDiscount = _referedDiscount;
 
         emit newReferralValues(referralFee, referedDiscount);
+    }
+
+
+    function setOwnersFeesCollector(address _newCollector) public onlyOwner {
+        require(_newCollector != ownersFeesCollector, "Already set to that collector.");
+        ownersFeesCollector = _newCollector;
+        emit newFeesCollector(_newCollector);
+    }
+
+    
+    function setOwnersFees(uint _newFee) public onlyOwner {
+        require(ownersFees != _newFee, "Already set to that fee.");
+        ownersFees = _newFee;
+        emit newFees(_newFee);
+    }
+
+
+    function checkIfValidReferralCode(uint _referralCode) public view returns(bool) {
+        return referralAddresses[_referralCode] != address(0)? true : false;
+    }
+
+    function checkIfValidReferrer(address _referralAddress) public view returns(bool) {
+        return referralCodes[_referralAddress] != 0? true : false;
     }
 
 
