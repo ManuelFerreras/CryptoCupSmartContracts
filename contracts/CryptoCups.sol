@@ -246,7 +246,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     }
 
 
-    function nextBatch(uint deadline, uint _basicPrice, uint _boostPrice) public onlyOwner finishedBatch {
+    function nextBatch(uint deadline, uint _basicPrice, uint _boostPrice) public onlyOwner {
         require(_basicPrice >= 0, "Invalid Price");
         require(_boostPrice >= 0, "Invalid Price");
 
@@ -260,6 +260,9 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
 
     function setReferralValues(uint _referralFee, uint _referedDiscount) public onlyOwner {
+        require(_referralFee >= 0, "Invalid Price");
+        require(_referedDiscount >= 0, "Invalid Price");
+
         referralFee = _referralFee;
         referedDiscount = _referedDiscount;
 
@@ -268,11 +271,6 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
 
     // Modifiers
-    modifier finishedBatch() {
-        require(block.timestamp >= currentBatchDeadline, "Batch has not finished yet.");
-        _;
-    }
-
     modifier onlyOngoingBatch() {
         require(block.timestamp < currentBatchDeadline, "Batch has already finished.");
         _;
