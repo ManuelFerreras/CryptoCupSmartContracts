@@ -6,7 +6,7 @@
  * CryptoCup Smart Contracts
  *
  * Developed By:
- *    - Manuel (NuMa) Ferreras
+ *    - NuMa
  *
  */
 
@@ -105,7 +105,7 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     mapping (address => uint) public referralCodes;
     mapping (uint => address) public referralAddresses;
 
-    uint public referedDiscount = 1;
+    uint public referedDiscount = 4;
     uint public referralFee = 1;
 
     // Ticket Type
@@ -138,7 +138,9 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
 
     // Constructor
-    constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {}
+    constructor(string memory name_, string memory symbol_) ERC721A (name_, symbol_) {
+        ownersFeesCollector = msg.sender;
+    }
 
 
     // Events
@@ -163,17 +165,17 @@ contract CryptoCupsTickets is ERC721A, Ownable {
 
         // Checks msg.sender has enough balance.
         IERC20Metadata _selectedCurrency = IERC20Metadata(currencies[_currency]);
-        uint _totalPriceAmount = _amount * _unitPrice * _selectedCurrency.decimals();
+        uint _totalPriceAmount = _amount * _unitPrice * 10 ** _selectedCurrency.decimals();
         require(_selectedCurrency.balanceOf(msg.sender) >= _unitPrice, "Not Enough Balance to Pay.");
         require(_selectedCurrency.allowance(msg.sender, address(this)) >= _unitPrice, "Not Enough Allowance to Pay.");
 
-        uint _totalReferralAmount = _discount? _amount * referralFee *  _selectedCurrency.decimals() : 0;
-        uint _totalOwnersFees = _discount? ownersFees *  _selectedCurrency.decimals() : ownersFees *  _selectedCurrency.decimals() * 2;
+        uint _totalReferralAmount = _discount? _amount * referralFee * 10 ** _selectedCurrency.decimals() : 0;
+        uint _totalOwnersFees = _discount? ownersFees * 10 ** _selectedCurrency.decimals() : ownersFees * 10 ** _selectedCurrency.decimals() * 2;
 
         // Pay for the ticket.
         _selectedCurrency.transferFrom(msg.sender, address(this), _totalPriceAmount - _totalReferralAmount - _totalOwnersFees);
         _selectedCurrency.transferFrom(msg.sender, ownersFeesCollector, _totalOwnersFees);
-        _selectedCurrency.transferFrom(msg.sender, referralAddresses[_referralCode], _totalReferralAmount);
+        if (_discount) _selectedCurrency.transferFrom(msg.sender, referralAddresses[_referralCode], _totalReferralAmount);
         
         if(referralCodes[msg.sender] == 0) {
             totalBuyers++;
@@ -294,12 +296,33 @@ contract CryptoCupsTickets is ERC721A, Ownable {
     }
 
 
+    function getReferralCodeFromAddress(address _referralAddress) public view returns(uint) {
+        return referralCodes[_referralAddress];
+    }
+
+
+    function getReferralAddressFromCode(uint _referralCode) public view returns(address) {
+        return referralAddresses[_referralCode];
+    }
+
+
     function checkIfValidReferralCode(uint _referralCode) public view returns(bool) {
         return referralAddresses[_referralCode] != address(0)? true : false;
     }
 
+
     function checkIfValidReferrer(address _referralAddress) public view returns(bool) {
         return referralCodes[_referralAddress] != 0? true : false;
+    }
+
+
+    function addCustomReferrerCode(address _referrer, uint _referrerCode) public onlyOwner {
+        require(_referrerCode < _baseReferralCode, "Must be lower than initial code.");
+        require(referralAddresses[_referrerCode] == address(0), "Code Already Taken.");
+        require(referralCodes[_referrer] == 0, "User is already a referrer.");
+
+        referralAddresses[_referrerCode] = _referrer;
+        referralCodes[_referrer] = _referrerCode;
     }
 
 
